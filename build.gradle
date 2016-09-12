@@ -1,6 +1,8 @@
 import com.bmuschko.gradle.docker.response.ResponseHandler
 import com.bmuschko.gradle.docker.tasks.container.*
 import com.bmuschko.gradle.docker.tasks.image.*
+import com.mysql.jdbc.Driver
+import groovy.sql.Sql
 
 buildscript {
     repositories {
@@ -8,7 +10,8 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.bmuschko:gradle-docker-plugin:3.0.1'
+        classpath 'com.bmuschko:gradle-docker-plugin:3.0.3'
+		classpath 'mysql:mysql-connector-java:5.1.39'
     }
 }
 
@@ -68,6 +71,20 @@ def isPortReady(host, port) {
     }
 }
 
+def verifyDb() {
+	def db = [url:'jdbc:mysql://localhost:3306/test_db', user:'testuser', password:'testpass', driver:'com.mysql.jdbc.Driver']
+	URLClassLoader loader = groovy.sql.Sql.class.classLoader
+	project.buildscript.configurations.classpath.each { File file ->
+	loader.addURL(file.toURL())
+	}
+	def sql = groovy.sql.Sql.newInstance(db.url, db.user, db.password, db.driver)
+	println "Connection to db is established with the following database(s):";
+	println "============================================================>>";
+	sql.eachRow('show databases') { row ->
+			println row[0]
+    }
+	println "\n";
+}
 // Waits for a port to be ready until timeoutSeconds has passed
 def waitForPort(host, port, timeoutSeconds) {
     println "waiting $timeoutSeconds seconds for $host:$port"
@@ -179,7 +196,8 @@ task waitForDbStart(type: DockerInspectContainer) {
         // set up immediately on localhost even if the container has not yet exposed mariadb on port 3306.  If we check
         // the localhost port 3306, it will be available immediately but mariadb will not be listening until it is
         // initialized.
-        waitForPort(ip, 3306, 1800)
+        //waitForPort(ip, 3306, 1800)
+		verifyDb()
     }
 }
 // It doesn't make sense to start waiting until the attempt to start the db has been made.  Does not declare startDbWithoutWait 
